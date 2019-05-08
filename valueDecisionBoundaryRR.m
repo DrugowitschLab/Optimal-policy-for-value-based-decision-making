@@ -96,11 +96,19 @@ rho = k*S{1}/tNull + (1-k)*rho_;                                                
 [V(:,:,length(t)), D(:,:,length(t))] = max_({Rh{1}-rho*tNull, Rh{2}-rho*tNull});                        % Max V~ at time tmax
 for iT = length(t)-1:-1:1
     [EVnext(:,:,iT), Ptrans{iT}, iStrans{iT}] = E(V(:,:,iT+1),S,t(iT),dt,g);                            % <V~(t+1)|S(t)> for waiting
+%    disp(size(Rh{1}));
+%    disp(size(Rh{2}));
+%    disp(size(EVnext(:,:,iT)));
     [V(:,:,iT), D(:,:,iT)] = max_({Rh{1}-rho*tNull, Rh{2}-rho*tNull, EVnext(:,:,iT)-(rho+c)*dt});       % [Average-adjusted value (V~), decision] at time t
 %     fprintf('%d/%d\t',iT,length(t)-1); toc;
 end
-V0 = mean(vector(V(iS0(1),iS0(2),1)));
+disp(iS0(1));
+%V0 = mean(vector(V(iS0(1),iS0(2),1)));
+V0 = V(iS0(1),iS0(2),1); % JARM (8th May '19)
 fprintf('rho = %d\tV0 = %d\t', rho_, V0); toc;
+
+function R = extrap(mat, varargin)
+    R = mat;
 
 function [EV, Ptrans, iStrans] = E(V,S,t,dt,g)
 g{1}.varRh = g{1}.varR * g{1}.varX / (t * g{1}.varR + g{1}.varX);
@@ -112,9 +120,9 @@ iStrans{1} = find(aSscale<3*sqrt(v1));
 iStrans{2} = find(aSscale<3*sqrt(v2));
 Ptrans = normal2({S{1}(iStrans{2},iStrans{1}),S{2}(iStrans{2},iStrans{1})}, [0 0], [v1 0; 0 v2]);
 mgn = ceil(size(Ptrans)/2);
-V = extrap(V,mgn,[5 5]);
-EV = conv2(V,Ptrans,'same');
-EV = EV(mgn(1)+1:end-mgn(1), mgn(2)+1:end-mgn(2));
+V = extrap(V,mgn,[5 5]); % JARM (8th May '19) ???
+EV = conv2(V,Ptrans,'same'); % JARM (8th May '19) marginalise expected value over probabilities of future states
+%EV = EV(mgn(1)+1:end-mgn(1), mgn(2)+1:end-mgn(2)); % JARM (8th May '19) select central sub-region of larger expected value array
 
 function v = varTrans(varRh, varR, varX, t, dt)
 % v = (varR * (varX + varRh)) / ((1 + t/dt) * varR + varX / dt);
@@ -142,10 +150,12 @@ S_ = repmat(S{2},[1 1 length(t)]); S_(D~=2 & D~=1.5) = -Inf; dbS2(:,:,2) = min(s
 mgn = 1; [sm{1},sm{2}] = meshgrid(-mgn:mgn,-mgn:mgn);
 for k=1:2;
     %% Extrapolating:
-    db_ = dbS2(:,:,k); db_(~isfinite(db_) & isfinite([db_(:,2:end) db_(:,end)])) = (-1)^(k+1)*max(vector(S{1}));  dbS2(:,:,k) = db_;
+    db_ = dbS2(:,:,k); db_(~isfinite(db_) & isfinite([db_(:,2:end) db_(:,end)])) = (-1)^(k+1)*max(max(S{1}));  dbS2(:,:,k) = db_; % JARM (8th May '19) changed vector() call to max()
     
     %% Smoothing:
-    db_ = conv2(extrap(dbS2(:,:,k),mgn),normal2(sm,[0 0],[1 0; 0 1]),'same');  dbS2(:,:,k) = db_(mgn+1:end-mgn,mgn+1:end-mgn);
+    db_ = conv2(extrap(dbS2(:,:,k),mgn),normal2(sm,[0 0],[1 0; 0 1]),'same'); 
+%    dbS2(:,:,k) = db_(mgn+1:end-mgn,mgn+1:end-mgn);
+    dbS2(:,:,k) = db_;     % JARM (8th May '19)
 end
 
 function [dbX, dbR] = transformDecBound(dbS2,Sscale,t,g)
@@ -163,7 +173,7 @@ x_ = Sscale(x(x+y==iS+round(length(Sscale)/2)));
 y_ = Sscale(y(x+y==iS+round(length(Sscale)/2)));
 v_ = Val(x+y==iS+round(length(Sscale)/2));
 h = surfl(Sscale, Sscale, Val); hold on; %camproj perspective;
-set(h,'FaceColor',sat(.5,col), 'EdgeColor','none'); camlight left; lighting phong; alpha(0.7)
+set(h,'FaceColor', col, 'EdgeColor','none'); camlight left; lighting phong; alpha(0.7) % JARM (8th May '19) replaced sat(.5,col) with col
 if ischar(col);  plot3(x_, y_, v_,         col); hold on;
 else             plot3(x_, y_, v_, 'Color',col); hold on;  end
 xlabel(Slabel{1}); ylabel(Slabel{2}); %zlim([-50 50]);
