@@ -108,6 +108,7 @@ V0 = V(iS0(1),iS0(2),1); % JARM (8th May '19)
 fprintf('rho = %d\tV0 = %d\t', rho_, V0); toc;
 
 function R = extrap(mat, varargin)
+    % JARM (9th May '19) original function missing; identity function used and code fixed around this
     R = mat;
 
 function [EV, Ptrans, iStrans] = E(V,S,t,dt,g)
